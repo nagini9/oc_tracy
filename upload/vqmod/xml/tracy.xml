@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modification>
+    <id>Tracy</id>
+    <version>0.1</version>
+    <vqmver required="true">2.6.0</vqmver>
+    <author>Michal Landsman</author>
+
+    <file path="system/engine/loader.php">
+        <operation info="log templates">
+            <search position="after">
+                <![CDATA[$output = $template->render($route . '.tpl');]]>
+            </search>
+            <add>
+                <![CDATA[
+                    $_SESSION['_tracy']['templates_log'][] = $route;
+                    // todo: think about this for future - some javascript tooltips
+                    // $output = '<span data-type="suggestions" data-template="'.$route.'" >' . $output . '</span>';
+				]]>
+            </add>
+        </operation>
+    </file>
+
+    <file path="system/framework.php">
+        <operation info="switch database vs session order init">
+            <search position="replace">
+                <![CDATA[$session = new Session();]]>
+            </search>
+            <add>
+                <![CDATA[]]>
+            </add>
+        </operation>
+        <operation info="switch database vs session order init">
+            <search position="replace">
+                <![CDATA[$session->start();]]>
+            </search>
+            <add>
+                <![CDATA[]]>
+            </add>
+        </operation>
+        <operation info="switch database vs session order init">
+            <search position="replace">
+                <![CDATA[$registry->set('session', $session);]]>
+            </search>
+            <add>
+                <![CDATA[]]>
+            </add>
+        </operation>
+        <operation info="switch database vs session order init">
+            <search position="before">
+                <![CDATA[// Loader]]>
+            </search>
+            <add>
+                <![CDATA[
+                    // Session
+                    $session = new Session();
+
+                    if ($config->get('session_autostart')) {
+                        $session->start();
+                    }
+
+                    $registry->set('session', $session);
+
+                    // clear last session about Tracy
+                    if(isset($_SESSION['_tracy']['templates_log'])) {
+                        unset($_SESSION['_tracy']['templates_log']);
+                    }
+                ]]>
+            </add>
+        </operation>
+        <operation info="bring tracy">
+            <search position="after">
+                <![CDATA[$session = new Session();]]>
+            </search>
+            <add>
+                <![CDATA[
+                    if(defined('DEV') && true == DEV) {
+
+                        Tracy\Debugger::enable(Tracy\Debugger::DEVELOPMENT, DIR_LOGS);
+                        Tracy\Debugger::$strictMode = TRUE;
+
+                        if(defined('DEV_EMAIL')) {
+                            Tracy\Debugger::$email = DEV_EMAIL;
+                        }
+
+                        if(defined('DEV_EDITOR')) {
+                            Tracy\Debugger::$editor = DEV_EDITOR;
+                        }
+
+                        // register opencart panels
+                        $panels = new TracyPanel\Plugin();
+                    }
+                ]]>
+            </add>
+        </operation>
+    </file>
+
+    <file path="system/library/db.php">
+        <operation info="database sql logger">
+            <search position="after">
+                <![CDATA[private $adaptor;]]>
+            </search>
+            <add>
+                <![CDATA[private $log;]]>
+            </add>
+        </operation>
+        <operation>
+            <search position="after">
+                <![CDATA[$this->adaptor =]]>
+            </search>
+            <add>
+                <![CDATA[
+                    if(isset($_SESSION['_tracy']['sql_log'])){
+                        unset($_SESSION['_tracy']['sql_log']);
+                    }
+
+                    $this->log = array();
+                    $this->log['page_url'] = (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : 'index.php';
+                    $this->log['query_total_time'] = 0;
+                ]]>
+            </add>
+        </operation>
+        <operation>
+            <search position="replace">
+                <![CDATA[return $this->adaptor->query($sql, $params);]]>
+            </search>
+            <add>
+                <![CDATA[
+                    $this->log['query_total_time'] = 0;
+                    $trace = debug_backtrace();
+                    $filename = (isset($trace[0]['file'])) ? $trace[0]['file'] : '---';
+
+                    $cmsPath = str_replace('upload/system/', '', DIR_SYSTEM);
+                    $cmsPath = str_replace('public/system/', '', $cmsPath);
+                    $pureFile = str_replace($cmsPath, '', $filename);
+
+
+                    $query_time = (time() + microtime());
+
+                    $result = $this->adaptor->query($sql, $params);
+
+                    $exec_time = (time() + microtime());
+                    $exec_time = round($exec_time - $query_time, 4);
+
+                    if (!isset($this->log['query_total_time']))
+                    {
+                        $this->log['query_total_time'] = 0;
+                    }
+
+                    $this->log['query_total_time'] = (float)$this->log['query_total_time'] + (float)$exec_time;
+                    $this->log['file']  = $pureFile;
+                    $this->log['time']  = $exec_time;
+                    $this->log['query'] = $sql;
+
+                    $_SESSION['_tracy']['sql_log'][] = $this->log;
+
+                    return $result;
+                ]]>
+            </add>
+        </operation>
+    </file>
+
+    <file name="system/library/template/php.php,system/library/config.php,system/library/db/mysql.php">
+        <operation info="better error reporting">
+            <search position="replace"><![CDATA[trigger_error(]]></search>
+            <add><![CDATA[throw new \Exception(]]></add>
+        </operation>
+    </file>
+
+</modification>

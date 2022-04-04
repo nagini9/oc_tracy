@@ -1,0 +1,16 @@
+{
+  "name": "nagini9/oc_tracy",
+  "type": "vqmod-plugin",
+  "description": "Implementation Tracy Debugger for Opencart 2.x",
+  "keywords": ["opencart", "tracy-debugger", "tracy", "sql-queries"],
+  "homepage": "http://burda.cz/cs/kariera/volna-mista#tester-koder",
+  "license": "MIT",
+  "require": {
+    "php": ">=5.4.0",
+    "tracy/tracy": "2.4.*"
+  },
+  "autoload": {
+    "classmap": ["src"],
+    "files": ["src/shortcuts.php"]
+  }
+}
