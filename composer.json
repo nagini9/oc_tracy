@@ -1,5 +1,5 @@
 {
-  "name": "nagini9/oc_tracy",
+  "name": "nagini/oc_tracy",
   "type": "vqmod-plugin",
   "description": "Implementation Tracy Debugger for Opencart 2.x",
   "keywords": ["opencart", "tracy-debugger", "tracy", "sql-queries"],
